@@ -1,6 +1,7 @@
 import numpy as np
 from config import SWING_WINDOW, SWEEP_LOOKBACK, FVG_MIN_GAP_PCT
 
+
 def detect_swings(high, low):
     n = len(high)
     sh = np.zeros(n, dtype=bool)
@@ -13,21 +14,30 @@ def detect_swings(high, low):
             sl[i] = True
     return sh, sl
 
+
 def detect_liquidity_sweep(high, low, close, sh, sl):
     idx = len(high) - 2
     if idx < SWEEP_LOOKBACK:
         return None
-    prior_lows = [i for i in range(idx - SWEEP_LOOKBACK, idx) if sl[i]]
-    prior_highs = [i for i in range(idx - SWEEP_LOOKBACK, idx) if sh[i]]
-    if prior_lows:
-        last_low = low[prior_lows[-1]]
-        if low[idx] < last_low and close[idx] > last_low:
-            return "bullish"
-    if prior_highs:
-        last_high = high[prior_highs[-1]]
-        if high[idx] > last_high and close[idx] < last_high:
-            return "bearish"
+
+    # Bullish sweep: current low breaks BELOW any prior swing low,
+    # but close comes back ABOVE that same level (wick rejection)
+    for i in range(idx - 1, max(0, idx - SWEEP_LOOKBACK), -1):
+        if sl[i]:
+            level = low[i]
+            if low[idx] < level and close[idx] > level:
+                return "bullish"
+
+    # Bearish sweep: current high breaks ABOVE any prior swing high,
+    # but close comes back BELOW that level
+    for i in range(idx - 1, max(0, idx - SWEEP_LOOKBACK), -1):
+        if sh[i]:
+            level = high[i]
+            if high[idx] > level and close[idx] < level:
+                return "bearish"
+
     return None
+
 
 def detect_fvg(high, low, close):
     if len(high) < 3:
@@ -41,6 +51,7 @@ def detect_fvg(high, low, close):
     if gap_bear > FVG_MIN_GAP_PCT:
         return "bearish"
     return None
+
 
 def find_nearest_swing(high, low, sh, sl, direction):
     idx = len(high) - 2
