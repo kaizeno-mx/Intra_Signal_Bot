@@ -1,0 +1,62 @@
+name: Intraday Signal Bot
+
+on:
+  schedule:
+    - cron: '0 1 * * 1-5'
+    - cron: '0 8 * * 1-5'
+    - cron: '30 14 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      session:
+        description: 'Session to run'
+        required: true
+        default: 'NewYork'
+        type: choice
+        options: [Asian, London, NewYork]
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Determine session
+        id: s
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "session=${{ github.event.inputs.session }}" >> $GITHUB_OUTPUT
+          else
+            H=$(date -u +%H)
+            if [ "$H" = "01" ]; then echo "session=Asian" >> $GITHUB_OUTPUT
+            elif [ "$H" = "08" ]; then echo "session=London" >> $GITHUB_OUTPUT
+            else echo "session=NewYork" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Run bot
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+        run: python bot.py ${{ steps.s.outputs.session }}
+
+      - name: Persist dedup
+        run: |
+          git config user.name "signal-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add dedup.json || true
+          if ! git diff --staged --quiet; then
+            git commit -m "update dedup [skip ci]"
+            git push || true
+          fi
