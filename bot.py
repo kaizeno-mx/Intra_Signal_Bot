@@ -46,6 +46,8 @@ def scan_symbol(symbol, meta, regime, session):
         return None
     if fvg is not None and fvg != sweep:
         return None
+       print(f"  [STRUCT] {symbol}: bars={len(high)} swings_h={int(sh.sum())} swings_
+       l={int(sl.sum())} sweep={sweep} fvg={fvg}")   
     direction = "Long" if sweep == "bullish" else "Short"
     target = find_nearest_swing(high, low, sh, sl, direction)
     signal = {
