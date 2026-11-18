@@ -1,0 +1,54 @@
+import yfinance as yf
+import pandas as pd
+from datetime import datetime, timedelta
+from config import DXY_TICKER, VIX_TICKER
+
+def fetch_macro_regime() -> dict:
+    out = {"regime": "Unclear", "dxy_trend": "flat", "vix_level": 0.0, "vix_trend": "flat"}
+    end = datetime.now()
+    start = end - timedelta(days=30)
+
+    try:
+        dxy = yf.download(DXY_TICKER, start=start.strftime("%Y-%m-%d"),
+                          end=end.strftime("%Y-%m-%d"), interval="1d",
+                          progress=False, auto_adjust=False)
+        if dxy is not None and not dxy.empty:
+            if isinstance(dxy.columns, pd.MultiIndex):
+                dxy.columns = dxy.columns.droplevel(1)
+            close = dxy["Close"].dropna()
+            if len(close) >= 20:
+                sma5 = close.rolling(5).mean().iloc[-1]
+                sma20 = close.rolling(20).mean().iloc[-1]
+                out["dxy_trend"] = "up" if sma5 > sma20 else "down"
+    except Exception as e:
+        print(f"[WARN] DXY fetch failed: {e}")
+
+    try:
+        vix = yf.download(VIX_TICKER, start=start.strftime("%Y-%m-%d"),
+                          end=end.strftime("%Y-%m-%d"), interval="1d",
+                          progress=False, auto_adjust=False)
+        if vix is not None and not vix.empty:
+            if isinstance(vix.columns, pd.MultiIndex):
+                vix.columns = vix.columns.droplevel(1)
+            v = vix["Close"].dropna()
+            if len(v) >= 5:
+                out["vix_level"] = float(v.iloc[-1])
+                delta = float(v.iloc[-1] - v.iloc[-5])
+                if delta > 1.0:
+                    out["vix_trend"] = "rising"
+                elif delta < -1.0:
+                    out["vix_trend"] = "falling"
+    except Exception as e:
+        print(f"[WARN] VIX fetch failed: {e}")
+
+    vix_lvl = out["vix_level"]
+    if vix_lvl == 0.0:
+        out["regime"] = "Unclear"
+    elif vix_lvl > 25:
+        out["regime"] = "Risk-Off"
+    elif vix_lvl < 18:
+        out["regime"] = "Risk-On"
+    else:
+        out["regime"] = "Neutral"
+
+    return out
