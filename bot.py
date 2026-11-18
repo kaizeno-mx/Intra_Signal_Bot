@@ -42,7 +42,9 @@ def scan_symbol(symbol, meta, regime, session):
     sh, sl = detect_swings(high, low)
     sweep = detect_liquidity_sweep(high, low, close, sh, sl)
     fvg = detect_fvg(high, low, close)
-    if sweep is None or fvg != sweep:
+    if sweep is None:
+        return None
+    if fvg is not None and fvg != sweep:
         return None
     direction = "Long" if sweep == "bullish" else "Short"
     target = find_nearest_swing(high, low, sh, sl, direction)
