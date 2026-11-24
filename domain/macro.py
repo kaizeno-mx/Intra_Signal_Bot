@@ -4,7 +4,8 @@ from datetime import datetime, timedelta
 from config import DXY_TICKER, VIX_TICKER
 
 def fetch_macro_regime() -> dict:
-    out = {"regime": "Unclear", "dxy_trend": "flat", "vix_level": 0.0, "vix_trend": "flat"}
+    out = {"regime": "Unclear", "dxy_trend": "flat", "vix_level": 0.0,
+           "vix_trend": "flat", "yield_10y": 0.0, "yield_trend": "flat"}
     end = datetime.now()
     start = end - timedelta(days=30)
 
@@ -40,6 +41,27 @@ def fetch_macro_regime() -> dict:
                     out["vix_trend"] = "falling"
     except Exception as e:
         print(f"[WARN] VIX fetch failed: {e}")
+
+    # 10Y Treasury Yield
+    try:
+        tnx = yf.download("^TNX", start=start.strftime("%Y-%m-%d"),
+                          end=end.strftime("%Y-%m-%d"), interval="1d",
+                          progress=False, auto_adjust=False)
+        if tnx is not None and not tnx.empty:
+            if isinstance(tnx.columns, pd.MultiIndex):
+                tnx.columns = tnx.columns.droplevel(1)
+            y = tnx["Close"].dropna()
+            if len(y) >= 5:
+                out["yield_10y"] = float(y.iloc[-1])
+                delta = float(y.iloc[-1] - y.iloc[-5])
+                if delta > 0.05:
+                    out["yield_trend"] = "rising"
+                elif delta < -0.05:
+                    out["yield_trend"] = "falling"
+                else:
+                    out["yield_trend"] = "flat"
+    except Exception as e:
+        print(f"[WARN] TNX fetch failed: {e}")
 
     vix_lvl = out["vix_level"]
     if vix_lvl == 0.0:
