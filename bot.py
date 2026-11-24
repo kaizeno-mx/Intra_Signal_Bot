@@ -1,11 +1,11 @@
 import sys, json, os
 from datetime import datetime
 from config import UNIVERSE, SESSIONS, CONFIDENCE_THRESHOLD, DEDUP_MINUTES
-from domain.data import fetch_intraday
-from domain.macro import fetch_macro_regime
-from domain.smc import detect_swings, detect_liquidity_sweep, detect_fvg, find_nearest_swing
-from domain.confidence import compute_confidence
-from domain.telegram import send, format_signal
+from domains.data import fetch_intraday
+from domains.macro import fetch_macro_regime
+from domains.smc import detect_swings, detect_liquidity_sweep, detect_fvg, find_nearest_swing, compute_trade_plan
+from domains.confidence import compute_confidence
+from domains.telegram import send, format_signal
 
 DEDUP_PATH = "dedup.json"
 
@@ -45,7 +45,7 @@ def scan_symbol(symbol, meta, regime, session):
     if sweep is None:
         return None
     if fvg is not None and fvg != sweep:
-        return None  
+        return None
     direction = "Long" if sweep == "bullish" else "Short"
     target = find_nearest_swing(high, low, sh, sl, direction)
     signal = {
@@ -60,6 +60,11 @@ def scan_symbol(symbol, meta, regime, session):
     conf, reasons = compute_confidence(signal, regime, meta["class"], session)
     signal["confidence"] = conf
     signal["reasons"] = reasons
+
+    plan = compute_trade_plan(signal, high, low, sh, sl, direction)
+    if plan:
+        signal["plan"] = plan
+
     return signal
 
 def main(session):
