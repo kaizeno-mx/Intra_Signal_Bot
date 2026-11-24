@@ -105,7 +105,7 @@ def compute_confidence(signal: dict, regime: dict, asset_class: str, session: st
 
     # Correlation consistency
     try:
-        from domains.correlation import check_correlation
+        from domain.correlation import check_correlation
         corr_delta, corr_reason = check_correlation(signal["symbol"], direction)
         score += corr_delta
         reasons.append(corr_reason)
@@ -114,7 +114,7 @@ def compute_confidence(signal: dict, regime: dict, asset_class: str, session: st
 
     # Higher timeframe alignment
     try:
-        from domains.htf import check_htf_alignment
+        from domain.htf import check_htf_alignment
         htf_delta, htf_reason = check_htf_alignment(signal.get("ticker", signal["symbol"]), direction)
         score += htf_delta
         reasons.append(htf_reason)
