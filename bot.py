@@ -1,11 +1,11 @@
 import sys, json, os
 from datetime import datetime
 from config import UNIVERSE, SESSIONS, CONFIDENCE_THRESHOLD, DEDUP_MINUTES
-from domains.data import fetch_intraday
-from domains.macro import fetch_macro_regime
-from domains.smc import detect_swings, detect_liquidity_sweep, detect_fvg, find_nearest_swing, compute_trade_plan
-from domains.confidence import compute_confidence
-from domains.telegram import send, format_signal
+from domain.data import fetch_intraday
+from domain.macro import fetch_macro_regime
+from domain.smc import detect_swings, detect_liquidity_sweep, detect_fvg, find_nearest_swing, compute_trade_plan
+from domain.confidence import compute_confidence
+from domain.telegram import send, format_signal
 
 DEDUP_PATH = "dedup.json"
 
