@@ -6,7 +6,8 @@ from config import DXY_TICKER, VIX_TICKER
 def fetch_macro_regime() -> dict:
     out = {"regime": "Unclear", "dxy_trend": "flat", "vix_level": 0.0,
            "vix_trend": "flat", "yield_10y": 0.0, "yield_trend": "flat",
-           "irx_13w": 0.0, "curve_slope": 0.0, "curve_trend": "flat"}
+           "irx_13w": 0.0, "curve_slope": 0.0, "curve_trend": "flat",
+           "brent_trend": "flat", "copper_trend": "flat"}
     end = datetime.now()
     start = end - timedelta(days=30)
 
@@ -86,6 +87,38 @@ def fetch_macro_regime() -> dict:
                         out["curve_trend"] = "flat"
     except Exception as e:
         print(f"[WARN] IRX fetch failed: {e}")
+
+    # Crude (Brent) trend — inflation / risk sentiment input
+    try:
+        brent = yf.download("BZ=F", start=start.strftime("%Y-%m-%d"),
+                            end=end.strftime("%Y-%m-%d"), interval="1d",
+                            progress=False, auto_adjust=False)
+        if brent is not None and not brent.empty:
+            if isinstance(brent.columns, pd.MultiIndex):
+                brent.columns = brent.columns.droplevel(1)
+            c = brent["Close"].dropna()
+            if len(c) >= 20:
+                sma5 = c.rolling(5).mean().iloc[-1]
+                sma20 = c.rolling(20).mean().iloc[-1]
+                out["brent_trend"] = "up" if sma5 > sma20 else "down"
+    except Exception as e:
+        print(f"[WARN] Brent fetch failed: {e}")
+
+    # Copper trend — "Dr. Copper" risk appetite proxy
+    try:
+        copper = yf.download("HG=F", start=start.strftime("%Y-%m-%d"),
+                             end=end.strftime("%Y-%m-%d"), interval="1d",
+                             progress=False, auto_adjust=False)
+        if copper is not None and not copper.empty:
+            if isinstance(copper.columns, pd.MultiIndex):
+                copper.columns = copper.columns.droplevel(1)
+            c = copper["Close"].dropna()
+            if len(c) >= 20:
+                sma5 = c.rolling(5).mean().iloc[-1]
+                sma20 = c.rolling(20).mean().iloc[-1]
+                out["copper_trend"] = "up" if sma5 > sma20 else "down"
+    except Exception as e:
+        print(f"[WARN] Copper fetch failed: {e}")
 
     vix_lvl = out["vix_level"]
     if vix_lvl == 0.0:
