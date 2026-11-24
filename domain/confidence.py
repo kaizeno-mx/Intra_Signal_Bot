@@ -61,7 +61,7 @@ def compute_confidence(signal: dict, regime: dict, asset_class: str, session: st
     else:
         reasons.append("+0 VIX trend neutral/misaligned")
 
-    # ---- NEW: 10Y yield alignment ----
+    # 10Y yield alignment
     yt = regime.get("yield_trend", "flat")
     if yt == "rising" and direction == "Short":
         score += 10; reasons.append("+10 yields rising supports short")
@@ -72,7 +72,7 @@ def compute_confidence(signal: dict, regime: dict, asset_class: str, session: st
     else:
         reasons.append("+0 yield trend neutral/misaligned")
 
-    # ---- NEW: yield curve ----
+    # Yield curve
     ct = regime.get("curve_trend", "flat")
     if ct == "steep" and direction == "Long" and asset_class in ("index", "crypto"):
         score += 5; reasons.append("+5 steep curve supports risk-on long")
@@ -81,7 +81,7 @@ def compute_confidence(signal: dict, regime: dict, asset_class: str, session: st
     else:
         reasons.append("+0 curve neutral")
 
-    # ---- NEW: copper (risk proxy) ----
+    # Copper
     cop = regime.get("copper_trend", "flat")
     if cop == "up" and direction == "Long" and asset_class in ("index", "crypto", "fx"):
         score += 5; reasons.append("+5 copper up confirms risk-on")
@@ -92,7 +92,7 @@ def compute_confidence(signal: dict, regime: dict, asset_class: str, session: st
     else:
         reasons.append("+0 copper neutral")
 
-    # ---- NEW: Brent (inflation / energy) ----
+    # Brent
     br = regime.get("brent_trend", "flat")
     if br == "up" and direction == "Long" and sym in ("BRENT", "GOLD"):
         score += 5; reasons.append("+5 Brent up supports energy/gold long")
@@ -102,5 +102,23 @@ def compute_confidence(signal: dict, regime: dict, asset_class: str, session: st
         score += 3; reasons.append("+3 Brent up mildly supports index long")
     else:
         reasons.append("+0 Brent neutral")
+
+    # Correlation consistency
+    try:
+        from domains.correlation import check_correlation
+        corr_delta, corr_reason = check_correlation(signal["symbol"], direction)
+        score += corr_delta
+        reasons.append(corr_reason)
+    except Exception as e:
+        reasons.append(f"+0 correlation check failed ({e})")
+
+    # Higher timeframe alignment
+    try:
+        from domains.htf import check_htf_alignment
+        htf_delta, htf_reason = check_htf_alignment(signal.get("ticker", signal["symbol"]), direction)
+        score += htf_delta
+        reasons.append(htf_reason)
+    except Exception as e:
+        reasons.append(f"+0 HTF check failed ({e})")
 
     return min(100, score), reasons
