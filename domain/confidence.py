@@ -61,4 +61,46 @@ def compute_confidence(signal: dict, regime: dict, asset_class: str, session: st
     else:
         reasons.append("+0 VIX trend neutral/misaligned")
 
+    # ---- NEW: 10Y yield alignment ----
+    yt = regime.get("yield_trend", "flat")
+    if yt == "rising" and direction == "Short":
+        score += 10; reasons.append("+10 yields rising supports short")
+    elif yt == "falling" and direction == "Long":
+        score += 10; reasons.append("+10 yields falling supports long")
+    elif yt == "falling" and direction == "Short" and sym in ("GOLD", "NAS100", "BTC"):
+        score += 5; reasons.append("+5 yields falling mildly supports short risk")
+    else:
+        reasons.append("+0 yield trend neutral/misaligned")
+
+    # ---- NEW: yield curve ----
+    ct = regime.get("curve_trend", "flat")
+    if ct == "steep" and direction == "Long" and asset_class in ("index", "crypto"):
+        score += 5; reasons.append("+5 steep curve supports risk-on long")
+    elif ct == "inverted" and direction == "Short":
+        score += 5; reasons.append("+5 inverted curve supports short")
+    else:
+        reasons.append("+0 curve neutral")
+
+    # ---- NEW: copper (risk proxy) ----
+    cop = regime.get("copper_trend", "flat")
+    if cop == "up" and direction == "Long" and asset_class in ("index", "crypto", "fx"):
+        score += 5; reasons.append("+5 copper up confirms risk-on")
+    elif cop == "down" and direction == "Short" and asset_class in ("index", "crypto", "fx"):
+        score += 5; reasons.append("+5 copper down confirms risk-off")
+    elif cop == "down" and direction == "Long" and sym == "GOLD":
+        score += 5; reasons.append("+5 copper down supports gold long (inflation hedge)")
+    else:
+        reasons.append("+0 copper neutral")
+
+    # ---- NEW: Brent (inflation / energy) ----
+    br = regime.get("brent_trend", "flat")
+    if br == "up" and direction == "Long" and sym in ("BRENT", "GOLD"):
+        score += 5; reasons.append("+5 Brent up supports energy/gold long")
+    elif br == "down" and direction == "Short" and sym in ("BRENT", "NAS100"):
+        score += 5; reasons.append("+5 Brent down supports short energy/risk")
+    elif br == "up" and direction == "Long" and asset_class == "index":
+        score += 3; reasons.append("+3 Brent up mildly supports index long")
+    else:
+        reasons.append("+0 Brent neutral")
+
     return min(100, score), reasons
