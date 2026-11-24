@@ -5,7 +5,8 @@ from config import DXY_TICKER, VIX_TICKER
 
 def fetch_macro_regime() -> dict:
     out = {"regime": "Unclear", "dxy_trend": "flat", "vix_level": 0.0,
-           "vix_trend": "flat", "yield_10y": 0.0, "yield_trend": "flat"}
+           "vix_trend": "flat", "yield_10y": 0.0, "yield_trend": "flat",
+           "irx_13w": 0.0, "curve_slope": 0.0, "curve_trend": "flat"}
     end = datetime.now()
     start = end - timedelta(days=30)
 
@@ -62,6 +63,29 @@ def fetch_macro_regime() -> dict:
                     out["yield_trend"] = "flat"
     except Exception as e:
         print(f"[WARN] TNX fetch failed: {e}")
+
+    # 13-week T-bill (^IRX) — for yield curve
+    try:
+        irx = yf.download("^IRX", start=start.strftime("%Y-%m-%d"),
+                          end=end.strftime("%Y-%m-%d"), interval="1d",
+                          progress=False, auto_adjust=False)
+        if irx is not None and not irx.empty:
+            if isinstance(irx.columns, pd.MultiIndex):
+                irx.columns = irx.columns.droplevel(1)
+            r = irx["Close"].dropna()
+            if len(r) >= 1:
+                out["irx_13w"] = float(r.iloc[-1])
+                if out["yield_10y"] > 0:
+                    slope = round(out["yield_10y"] - out["irx_13w"], 2)
+                    out["curve_slope"] = slope
+                    if slope > 0.5:
+                        out["curve_trend"] = "steep"
+                    elif slope < -0.1:
+                        out["curve_trend"] = "inverted"
+                    else:
+                        out["curve_trend"] = "flat"
+    except Exception as e:
+        print(f"[WARN] IRX fetch failed: {e}")
 
     vix_lvl = out["vix_level"]
     if vix_lvl == 0.0:
