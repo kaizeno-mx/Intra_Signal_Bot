@@ -50,6 +50,7 @@ def scan_symbol(symbol, meta, regime, session):
     target = find_nearest_swing(high, low, sh, sl, direction)
     signal = {
         "symbol": symbol, "direction": direction,
+        "ticker": meta["ticker"],
         "price": round(float(close[-2]), 5),
         "sweep": sweep, "fvg": fvg,
         "regime": regime["regime"], "dxy_trend": regime["dxy_trend"],
