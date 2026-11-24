@@ -26,6 +26,22 @@ def format_signal(s: dict) -> str:
     emoji = "🟢" if s["direction"] == "Long" else "🔴"
     conf_bar = "█" * (s["confidence"] // 10) + "░" * (10 - s["confidence"] // 10)
     reasons = "\n".join(f"  • {r}" for r in s["reasons"] if not r.startswith("+0"))
+
+    plan_text = ""
+    if "plan" in s and s["plan"]:
+        p = s["plan"]
+        plan_text = (
+            f"\n━━━━━━━━━━━━━━━━━━\n"
+            f"📋 *Suggested Trade Plan*\n"
+            f"  Entry: `{p['entry']}`\n"
+            f"  Stop Loss: `{p['stop']}`\n"
+            f"  TP1 (+3R): `{p['tp1']}`\n"
+            f"  TP2 (+4.5R): `{p['tp2']}`\n"
+            f"  TP3 (+5R): `{p['tp3']}`\n"
+            f"  Risk: `{p['risk_points']}` points\n"
+            f"  _Scale out: 50% at TP1, 30% at TP2, 20% at TP3_\n"
+        )
+
     return (
         f"{emoji} *{s['symbol']}* {s['direction']}  —  *{s['confidence']}% confidence*\n"
         f"`{conf_bar}`\n"
@@ -35,8 +51,8 @@ def format_signal(s: dict) -> str:
         f"📊 Regime: {s['regime']} | VIX {s['vix']} ({s['vix_trend']})\n"
         f"💵 DXY: {s['dxy_trend']}\n"
         f"🔄 Sweep: {s['sweep']} | FVG: {s['fvg']}\n"
-        f"🎯 Target ref: `{s.get('target', 'n/a')}`\n"
         f"⏱ {s['timeframe']} | {s['time']}\n"
+        f"{plan_text}"
         f"━━━━━━━━━━━━━━━━━━\n"
         f"*Confidence breakdown:*\n{reasons}\n"
         f"━━━━━━━━━━━━━━━━━━\n"
