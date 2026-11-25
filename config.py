@@ -9,7 +9,7 @@ SWING_WINDOW = 3
 FVG_MIN_GAP_PCT = 0.0001
 SWEEP_LOOKBACK = 40
 CONFIDENCE_THRESHOLD = 50
-DEDUP_MINUTES = 0
+DEDUP_MINUTES = 360
 
 UNIVERSE = {
     "EURUSD": {"ticker": "EURUSD=X",  "class": "fx",     "sessions": ["London", "NewYork"]},
