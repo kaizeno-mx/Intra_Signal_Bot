@@ -28,28 +28,39 @@ def compute_confidence(signal: dict, regime: dict, asset_class: str, session: st
     else:
         reasons.append(f"+0 secondary session ({session})")
 
+    # ---- DXY block (with USDJPY override) ----
     dxy = regime.get("dxy_trend", "flat")
     sym = signal["symbol"]
-    if dxy == "up":
-        if sym in ("EURUSD", "GBPUSD") and direction == "Short":
-            score += 15; reasons.append("+15 DXY up supports short EUR/GBP")
-        elif sym == "USDJPY" and direction == "Long":
+    if sym == "USDJPY":
+        # USDJPY is yield-differential driven; DXY strength alone is not enough
+        yt_check = regime.get("yield_trend", "flat")
+        if dxy == "up" and direction == "Long" and yt_check == "falling":
+            score -= 10; reasons.append("-10 USDJPY long: DXY up but yields falling (conflict)")
+        elif dxy == "down" and direction == "Short" and yt_check == "rising":
+            score -= 10; reasons.append("-10 USDJPY short: DXY down but yields rising (conflict)")
+        elif dxy == "up" and direction == "Long":
             score += 15; reasons.append("+15 DXY up supports long USDJPY")
-        elif sym == "GOLD" and direction == "Short":
-            score += 10; reasons.append("+10 DXY up mildly supports short gold")
-        else:
-            reasons.append("+0 DXY up not aligned")
-    elif dxy == "down":
-        if sym in ("EURUSD", "GBPUSD") and direction == "Long":
-            score += 15; reasons.append("+15 DXY down supports long EUR/GBP")
-        elif sym == "GOLD" and direction == "Long":
-            score += 15; reasons.append("+15 DXY down supports long gold")
-        elif sym == "USDJPY" and direction == "Short":
+        elif dxy == "down" and direction == "Short":
             score += 15; reasons.append("+15 DXY down supports short USDJPY")
         else:
-            reasons.append("+0 DXY down not aligned")
+            reasons.append("+0 USDJPY DXY not aligned")
     else:
-        reasons.append("+0 DXY flat")
+        if dxy == "up":
+            if sym in ("EURUSD", "GBPUSD") and direction == "Short":
+                score += 15; reasons.append("+15 DXY up supports short EUR/GBP")
+            elif sym == "GOLD" and direction == "Short":
+                score += 10; reasons.append("+10 DXY up mildly supports short gold")
+            else:
+                reasons.append("+0 DXY up not aligned")
+        elif dxy == "down":
+            if sym in ("EURUSD", "GBPUSD") and direction == "Long":
+                score += 15; reasons.append("+15 DXY down supports long EUR/GBP")
+            elif sym == "GOLD" and direction == "Long":
+                score += 15; reasons.append("+15 DXY down supports long gold")
+            else:
+                reasons.append("+0 DXY down not aligned")
+        else:
+            reasons.append("+0 DXY flat")
 
     vt = regime.get("vix_trend", "flat")
     if vt == "rising" and direction == "Short":
@@ -61,16 +72,30 @@ def compute_confidence(signal: dict, regime: dict, asset_class: str, session: st
     else:
         reasons.append("+0 VIX trend neutral/misaligned")
 
-    # 10Y yield alignment
+    # ---- USDJPY yield-specific override ----
     yt = regime.get("yield_trend", "flat")
-    if yt == "rising" and direction == "Short":
-        score += 10; reasons.append("+10 yields rising supports short")
-    elif yt == "falling" and direction == "Long":
-        score += 10; reasons.append("+10 yields falling supports long")
-    elif yt == "falling" and direction == "Short" and sym in ("GOLD", "NAS100", "BTC"):
-        score += 5; reasons.append("+5 yields falling mildly supports short risk")
-    else:
-        reasons.append("+0 yield trend neutral/misaligned")
+    if sym == "USDJPY":
+        if yt == "falling" and direction == "Long":
+            score -= 15; reasons.append("-15 USDJPY long against falling US yields")
+        elif yt == "rising" and direction == "Short":
+            score -= 15; reasons.append("-15 USDJPY short against rising US yields")
+        elif yt == "rising" and direction == "Long":
+            score += 10; reasons.append("+10 USDJPY long aligned with rising yields")
+        elif yt == "falling" and direction == "Short":
+            score += 10; reasons.append("+10 USDJPY short aligned with falling yields")
+        else:
+            reasons.append("+0 USDJPY yield neutral")
+
+    # ---- Generic 10Y yield alignment (non-USDJPY) ----
+    if sym != "USDJPY":
+        if yt == "rising" and direction == "Short":
+            score += 10; reasons.append("+10 yields rising supports short")
+        elif yt == "falling" and direction == "Long":
+            score += 10; reasons.append("+10 yields falling supports long")
+        elif yt == "falling" and direction == "Short" and sym in ("GOLD", "NAS100", "BTC"):
+            score += 5; reasons.append("+5 yields falling mildly supports short risk")
+        else:
+            reasons.append("+0 yield trend neutral/misaligned")
 
     # Yield curve
     ct = regime.get("curve_trend", "flat")
